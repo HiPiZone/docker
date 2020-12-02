@@ -2,6 +2,8 @@ version: '3.6'
 
 services:
   akhq:
+    # build:
+    #   context: .
     image: tchiotludo/akhq
     environment:
       AKHQ_CONFIGURATION: |
@@ -20,9 +22,8 @@ services:
     links:
       - kafka
       - schema-registry
-
-    network_mode: host
-
+    networks:
+      - elastic
   zookeeper:
     image: confluentinc/cp-zookeeper
     volumes:
@@ -31,11 +32,11 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: '2181'
       ZOOKEEPER_ADMIN_ENABLE_SERVER: 'false'
-
-    network_mode: host
-
+    networks:
+      - elastic
   kafka:
-    image: bitnami/kafka
+    image: confluentinc/cp-kafka
+
     volumes:
       - kafka-data:/var/lib/kafka:Z
     environment:
@@ -46,22 +47,22 @@ services:
       KAFKA_NUM_PARTITIONS: '12'
       KAFKA_COMPRESSION_TYPE: 'gzip'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
-      #KAFKA_CREATE_TOPICS: "POC_SPLUNK:1:1:compact"
+      KAFKA_CREATE_TOPICS: "POC_SPLUNK:1:1:compact"
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
       KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
-      #SSL://kafka:9093
       KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
       KAFKA_JMX_PORT: '9091'
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_AUTHORIZER_CLASS_NAME: 'kafka.security.auth.SimpleAclAuthorizer'
       KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: 'true'
       
+      #############
+
     links:
       - zookeeper
-
-    network_mode: host
-
+    networks:
+      - elastic
   schema-registry:
     image: confluentinc/cp-schema-registry
     depends_on:
@@ -71,9 +72,8 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
       SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8085'
       SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: 'INFO'
-
-    network_mode: host
-
+    networks:
+      - elastic
   connect:
     image: confluentinc/cp-kafka-connect
     depends_on:
@@ -101,7 +101,8 @@ services:
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
       CONNECT_PLUGIN_PATH: ' /usr/share/java/'
      
-    network_mode: host
+    networks:
+      - elastic
 
  #################################################################
 
@@ -158,9 +159,13 @@ volumes:
     driver: local
   certs:
     driver: local
+
   zookeeper-data:
     driver: local
   zookeeper-log:
     driver: local
   kafka-data:
     driver: local
+networks:
+  elastic:
+    driver: bridge
