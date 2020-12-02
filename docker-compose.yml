@@ -35,7 +35,7 @@ services:
     networks:
       - elastic
   kafka:
-    image: confluentinc/cp-kafka
+    image: bitnami/kafka
 
     volumes:
       - kafka-data:/var/lib/kafka:Z
@@ -51,6 +51,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
       KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
+      #SSL://kafka:9093
       KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
       KAFKA_JMX_PORT: '9091'
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
@@ -100,100 +101,3 @@ services:
       CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1'
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
       CONNECT_PLUGIN_PATH: ' /usr/share/java/'
-     
-    networks:
-      - elastic
-
- #################################################################
-
- #  create_certs:
-#    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
-#    container_name: create_certs
-#    command: >
-#      bash -c '
-#        yum install -y -q -e 0 unzip;
-#        if [[ ! -f /certs/bundle.zip ]]; then
-#          bin/elasticsearch-certutil cert --silent --pem --in config/certificates/instances.yml -out /certs/bundle.zip;
-#          unzip /certs/bundle.zip -d /certs;
-#        fi;
-#        chown -R 1000:0 /certs
-#      '
-#    working_dir: /usr/share/elasticsearch
-#    volumes:
-#      - certs:/certs
-#      - .:/usr/share/elasticsearch/config/certificates
-#    networks:
-#      - elastic
-
-  es01:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
-    container_name: es01
-
-#    depends_on:
-#      - create_certs
-
-    environment:
-      - discovery.type=single-node
-      - ELASTIC_USERNAME=elastic
-      - ELASTIC_PASSWORD=password
-     # - bootstrap.memory_lock=true
-     # - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=true
-     # - xpack.license.self_generated.type=basic  
-      - xpack.security.http.ssl.enabled=true 
-      - xpack.security.http.ssl.key=/usr/share/elasticsearch/config/certificates/es01/es01.key
-      - xpack.security.http.ssl.certificate_authorities=/usr/share/elasticsearch/config/certificates/ca/ca.crt
-      - xpack.security.http.ssl.certificate=/usr/share/elasticsearch/config/certificates/es01/es01.crt
-      - xpack.security.http.ssl.keystore.password=elastic
-      - xpack.security.http.ssl.client_authentication=none
-      #optional
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - data01:/usr/share/elasticsearch/data
-      - certs:/usr/share/elasticsearch/config/certificates
-    ports:
-     # -8080:9200 
-      - 9200:9200
-
-    networks:
-      - elastic
-  kib01:
-    image: docker.elastic.co/kibana/kibana:7.10.0
-    container_name: kib01
-    depends_on:
-      - es01
-    ports:
-      - 5601:5601
-    environment:
-      #SERVERNAME: localhost
-      ELASTICSEARCH_URL: https://es01:9200
-      ELASTICSEARCH_HOSTS: https://es01:9200
-      ELASTICSEARCH_USERNAME: elastic
-      ELASTICSEARCH_PASSWORD: password
-      ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES: /usr/share/elasticsearch/config/certificates/ca/ca.crt
-     # SERVER_SSL_ENABLED: "true"
-     # SERVER_SSL_KEY: /usr/share/elasticsearch/config/certificates/kib01/kib01.key
-     # SERVER_SSL_CERTIFICATE: /usr/share/elasticsearch/config/certificates/kib01/kib01.crt
-      #elasticsearch.ssl.verificationMode: certificate
-    volumes:
-      - certs:/usr/share/elasticsearch/config/certificates
-    networks:
-      - elastic
-volumes:
-  data01:
-    driver: local
-  certs:
-    driver: local
-
-  zookeeper-data:
-    driver: local
-  zookeeper-log:
-    driver: local
-  kafka-data:
-    driver: local
-networks:
-  elastic:
-    driver: bridge
